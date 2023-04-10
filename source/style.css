@@ -110,6 +110,10 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+.hidden {
+  display: none !important;
+}
 .fact-form input,
 .fact-form select {
   background-color: #f8fafc;
