@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import supabase from "./supabase.js";
 import "./style.css";
 
 const CATEGORIES = [
@@ -48,27 +49,58 @@ const initialFacts = [
 
 function App() {
   const [formbool, setFormbool] = useState(false);
+  const [facts, setFacts] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(function () {
+    async function getdata() {
+      setIsLoading(true);
+      // ADD PAGINATION
+      let { data: facts, error } = await supabase
+        .from("facts")
+        .select("*")
+        .limit(50);
+      // console.log(facts);
+
+      if (!error) setFacts(facts);
+      else alert("there was a problem in retrieving the data");
+
+      setIsLoading(false);
+    }
+    getdata();
+  }, []);
+
   return (
     <>
-      <header class="header">
-        <div className="logo">
-          <img src="/message-icon.webp" alt="img" width="68" height="68" />
-          <h1>Today I Learned</h1>
-        </div>
-        <button
-          className="but sharefact"
-          onClick={() => setFormbool((s) => !s)}
-        >
-          Share a fact
-        </button>
-      </header>
-      {formbool ? <Factform /> : null}
+      <Header setFormbool={setFormbool} formbool={formbool} />
+      {formbool ? (
+        <Factform setFacts={setFacts} setFormbool={setFormbool} />
+      ) : null}
       <main className="main">
         <Categories />
-        <Factslist />
+        {isLoading ? <Loader /> : <Factslist facts={facts} />}
+
         <Counter />
       </main>
     </>
+  );
+}
+
+function Loader() {
+  return <p>Loading...</p>;
+}
+
+function Header({ setFormbool, formbool }) {
+  return (
+    <header className="header">
+      <div className="logo">
+        <img src="/message-icon.webp" alt="img" width="68" height="68" />
+        <h1>Today I Learned</h1>
+      </div>
+      <button className="but sharefact" onClick={() => setFormbool((s) => !s)}>
+        {formbool ? "Close" : "Share a fact"}
+      </button>
+    </header>
   );
 }
 
@@ -85,15 +117,87 @@ function Counter() {
   );
 }
 
-function Factform() {
-  return <form className="fact-form"> Fact form</form>;
+function Factform({ setFacts, setFormbool }) {
+  const [text, setText] = useState("");
+  const [Source, setSource] = useState("");
+  const [category, setCategory] = useState("");
+  const lenn = 200 - text.length;
+
+  function handlesubmit(e) {
+    e.preventDefault();
+    // console.log(text, Source, category);
+
+    if (text && Source && category && lenn <= 200) {
+      const newFact = {
+        id: Math.round(Math.random * 10000000),
+        text: text,
+        source: Source,
+        category: category,
+        votesInteresting: 0,
+        votesMindblowing: 0,
+        votesFalse: 0,
+        createdIn: new Date(),
+      };
+      console.log(newFact.text, newFact.createdIn);
+      setFacts((facts) => [newFact, ...facts]);
+      setText("");
+      setCategory("");
+      setSource("");
+
+      setFormbool(false);
+    }
+  }
+
+  return (
+    <form action="" className="fact-form" onSubmit={handlesubmit}>
+      <input
+        type="text"
+        name=""
+        id=""
+        placeholder="Share a fact"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+        }}
+      />
+      <span>{lenn}</span>
+      <input
+        type="text"
+        name=""
+        id=""
+        placeholder="Back it up with a source"
+        value={Source}
+        onChange={(e) => {
+          setSource(e.target.value);
+        }}
+      />
+      <select
+        name=""
+        id=""
+        value={category}
+        onChange={(e) => {
+          setCategory(e.target.value);
+        }}
+      >
+        <option value="">Choose Category:</option>
+        {CATEGORIES.map((cat) => (
+          <option key={cat.name} value={cat.name}>
+            {cat.name}
+          </option>
+        ))}
+      </select>
+      <button className="but" style={{ minWidth: "120px" }}>
+        Post
+      </button>
+    </form>
+  );
 }
 
 function Categories() {
   return (
     <ul className="but-lst">
       {CATEGORIES.map((cat) => (
-        <li>
+        <li key={cat.name}>
           <button
             className="but"
             style={{ backgroundColor: cat.color, color: "white" }}
@@ -106,8 +210,7 @@ function Categories() {
   );
 }
 
-function Factslist() {
-  const facts = initialFacts;
+function Factslist({ facts }) {
   return (
     <ul className="fact-list">
       {facts.map((fact) => (
@@ -122,7 +225,7 @@ function Fact({ fact }) {
   return (
     <li className="fact">
       <p>
-        {fact.text}
+        {fact.textt}
         <a className="source" href={fact.source}>
           (Source)
         </a>
@@ -140,15 +243,15 @@ function Fact({ fact }) {
       <div className="votes">
         <button>
           <strong>👍</strong>
-          {fact.votesMindblowing}
+          {fact.upvotes}
         </button>
         <button>
           <strong>😑</strong>
-          {fact.votesInteresting}
+          {fact.mehvotes}
         </button>
         <button>
           <strong>👎</strong>
-          {fact.votesFalse}
+          {fact.downvotes}
         </button>
       </div>
     </li>
