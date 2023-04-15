@@ -51,6 +51,7 @@ function App() {
   const [formbool, setFormbool] = useState(false);
   const [facts, setFacts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  // const [isUploading, setIsUploading] = useState(false);
 
   useEffect(function () {
     async function getdata() {
@@ -59,7 +60,8 @@ function App() {
       let { data: facts, error } = await supabase
         .from("facts")
         .select("*")
-        .limit(50);
+        .limit(50)
+        .order("id", { ascending: false });
       // console.log(facts);
 
       if (!error) setFacts(facts);
@@ -77,10 +79,14 @@ function App() {
         <Factform setFacts={setFacts} setFormbool={setFormbool} />
       ) : null}
       <main className="main">
-        <Categories />
-        {isLoading ? <Loader /> : <Factslist facts={facts} />}
+        <Categories setFacts={setFacts} />
+        {isLoading ? (
+          <Loader />
+        ) : (
+          <Factslist facts={facts} setFacts={setFacts} />
+        )}
 
-        <Counter />
+        {/* <Counter /> */}
       </main>
     </>
   );
@@ -104,18 +110,18 @@ function Header({ setFormbool, formbool }) {
   );
 }
 
-function Counter() {
-  const [count, setCount] = useState(0);
+// function Counter() {
+//   const [count, setCount] = useState(0);
 
-  return (
-    <div>
-      <h1>{count}</h1>
-      <button className="but" onClick={() => setCount((c) => c + 1)}>
-        +1
-      </button>
-    </div>
-  );
-}
+//   return (
+//     <div>
+//       <h1>{count}</h1>
+//       <button className="but" onClick={() => setCount((c) => c + 1)}>
+//         +1
+//       </button>
+//     </div>
+//   );
+// }
 
 function Factform({ setFacts, setFormbool }) {
   const [text, setText] = useState("");
@@ -123,23 +129,31 @@ function Factform({ setFacts, setFormbool }) {
   const [category, setCategory] = useState("");
   const lenn = 200 - text.length;
 
-  function handlesubmit(e) {
+  async function handlesubmit(e) {
     e.preventDefault();
     // console.log(text, Source, category);
 
     if (text && Source && category && lenn <= 200) {
-      const newFact = {
-        id: Math.round(Math.random * 10000000),
-        text: text,
-        source: Source,
-        category: category,
-        votesInteresting: 0,
-        votesMindblowing: 0,
-        votesFalse: 0,
-        createdIn: new Date(),
-      };
-      console.log(newFact.text, newFact.createdIn);
-      setFacts((facts) => [newFact, ...facts]);
+      // const newFact = {
+      //   id: Math.round(Math.random * 10000000),
+      //   text: text,
+      //   source: Source,
+      //   category: category,
+      //   votesInteresting: 0,
+      //   votesMindblowing: 0,
+      //   votesFalse: 0,
+      //   createdIn: new Date(),
+      // };
+
+      const { data: newFact, error } = await supabase
+        .from("facts")
+        .insert([{ textt: text, source: Source, category: category }])
+        .select();
+
+      // console.log(newFact);
+
+      if (!error) setFacts((facts) => [newFact[0], ...facts]);
+
       setText("");
       setCategory("");
       setSource("");
@@ -193,13 +207,45 @@ function Factform({ setFacts, setFormbool }) {
   );
 }
 
-function Categories() {
+function Categories({ setFacts }) {
+  async function getdata(catname) {
+    // ADD PAGINATION
+    let { data: facts, error } = await supabase
+      .from("facts")
+      .select("*")
+      .eq("category", catname)
+      .limit(50);
+    // console.log("here");
+
+    if (!error) setFacts(facts);
+    else alert("there was a problem in retrieving the data");
+  }
+
+  async function getalldata() {
+    // ADD PAGINATION
+    let { data: facts, error } = await supabase
+      .from("facts")
+      .select("*")
+      .limit(50);
+    // console.log("here");
+
+    if (!error) setFacts(facts);
+    else alert("there was a problem in retrieving the data");
+  }
+
   return (
     <ul className="but-lst">
+      {" "}
+      <li>
+        <button onClick={() => getalldata()} className="but">
+          All
+        </button>
+      </li>
       {CATEGORIES.map((cat) => (
         <li key={cat.name}>
           <button
             className="but"
+            onClick={() => getdata(cat.name)}
             style={{ backgroundColor: cat.color, color: "white" }}
           >
             {cat.name}
@@ -210,17 +256,32 @@ function Categories() {
   );
 }
 
-function Factslist({ facts }) {
+function Factslist({ facts, setFacts }) {
   return (
     <ul className="fact-list">
       {facts.map((fact) => (
-        <Fact key={fact.id} fact={fact} />
+        <Fact key={fact.id} fact={fact} setFacts={setFacts} />
       ))}
     </ul>
   );
 }
 
-function Fact({ fact }) {
+function Fact({ fact, setFacts }) {
+  // const [disvotes, setDisvotes] = useState(false);
+  async function handlevotes(vote) {
+    const { data: updatedvotes, error } = await supabase
+      .from("facts")
+      .update({ [vote]: fact[vote] + 1 })
+      .eq("id", fact.id)
+      .select();
+
+    // console.log(updatedvotes[0]);
+    if (!error) {
+      setFacts((facts) =>
+        facts.map((f) => (f.id === fact.id ? updatedvotes[0] : f))
+      );
+    }
+  }
   // console.log(fact);
   return (
     <li className="fact">
@@ -241,15 +302,15 @@ function Fact({ fact }) {
         </span>
       </p>
       <div className="votes">
-        <button>
+        <button onClick={() => handlevotes("upvotes")}>
           <strong>👍</strong>
           {fact.upvotes}
         </button>
-        <button>
+        <button onClick={() => handlevotes("mehvotes")}>
           <strong>😑</strong>
           {fact.mehvotes}
         </button>
-        <button>
+        <button onClick={() => handlevotes("downvotes")}>
           <strong>👎</strong>
           {fact.downvotes}
         </button>
